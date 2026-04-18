@@ -1,0 +1,95 @@
+{
+  "_comment": "AI Daily Report - Source Configuration. Two dimensions: quality (model-scored 1-10) and crawl_difficulty (easy/medium/hard).",
+  "sources": [
+    {
+      "id": "hackernews_top",
+      "name": "Hacker News Top Stories",
+      "url": "https://hacker-news.firebaseio.com/v0/topstories.json",
+      "item_url_template": "https://hacker-news.firebaseio.com/v0/item/{id}.json",
+      "browse_url": "https://news.ycombinator.com",
+      "quality_score": 9,
+      "crawl_difficulty": "easy",
+      "crawl_method": "curl",
+      "description": "HN top stories via Firebase API. Returns story IDs, fetch each item for title/url/score/comments.",
+      "filters": {
+        "min_score": 50,
+        "max_items": 30,
+        "categories": ["all"]
+      },
+      "notes": "Firebase API is public, no auth needed. Rate limit friendly. Top 500 story IDs returned, filter by score >= 50 for quality."
+    },
+    {
+      "id": "hackernews_best",
+      "name": "Hacker News Best Stories",
+      "url": "https://hacker-news.firebaseio.com/v0/beststories.json",
+      "item_url_template": "https://hacker-news.firebaseio.com/v0/item/{id}.json",
+      "browse_url": "https://news.ycombinator.com/best",
+      "quality_score": 9,
+      "crawl_difficulty": "easy",
+      "crawl_method": "curl",
+      "description": "HN best stories (algorithmically ranked). Higher signal-to-noise than top stories.",
+      "filters": {
+        "min_score": 80,
+        "max_items": 20,
+        "categories": ["all"]
+      },
+      "notes": "Best stories have higher average quality. Use as primary source, supplement with top stories for recency."
+    },
+    {
+      "id": "huggingface_papers",
+      "name": "HuggingFace Daily Papers",
+      "url": "https://huggingface.co/api/daily_papers",
+      "browse_url": "https://huggingface.co/papers",
+      "quality_score": 8,
+      "crawl_difficulty": "medium",
+      "crawl_method": "webfetch",
+      "description": "HuggingFace curated daily papers with upvotes. API returns JSON with paper metadata and community votes.",
+      "filters": {
+        "min_upvotes": 10,
+        "max_items": 15,
+        "categories": ["ml", "nlp", "cv", "multimodal", "agents"]
+      },
+      "notes": "API may return HTML if Accept header is wrong. Use WebFetch with prompt to extract structured data. Papers are already community-curated by upvotes."
+    }
+  ],
+  "difficulty_tiers": {
+    "easy": {
+      "method": "curl",
+      "description": "Direct API call via curl. Returns clean JSON. No auth, no JS rendering needed.",
+      "agent_tool": "Bash",
+      "example": "curl -s 'https://hacker-news.firebaseio.com/v0/topstories.json' | python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)[:30]))'"
+    },
+    "medium": {
+      "method": "webfetch",
+      "description": "Needs HTTP fetch with content extraction. May return HTML that needs parsing, or API with specific headers.",
+      "agent_tool": "WebFetch",
+      "example": "Use WebFetch tool with a prompt to extract structured data from the page."
+    },
+    "hard": {
+      "method": "playwright",
+      "description": "Requires full browser automation. JS-rendered content, login walls, infinite scroll, or anti-bot measures.",
+      "agent_tool": "mcp__playwright__playwright_navigate",
+      "example": "Navigate to page, wait for JS render, extract visible text, screenshot if needed."
+    }
+  },
+  "quality_tiers": {
+    "tier_1": {
+      "range": [8, 10],
+      "label": "Primary sources",
+      "description": "Community-curated, high signal-to-noise. Always include in daily report.",
+      "sources": ["hackernews_top", "hackernews_best", "huggingface_papers"]
+    },
+    "tier_2": {
+      "range": [5, 7],
+      "label": "Secondary sources",
+      "description": "Good content but may need heavier filtering. Include if time permits or for specific topics.",
+      "sources": []
+    },
+    "tier_3": {
+      "range": [1, 4],
+      "label": "Supplementary sources",
+      "description": "Niche or noisy. Only use for gap-filling on specific topics.",
+      "sources": []
+    }
+  }
+}
