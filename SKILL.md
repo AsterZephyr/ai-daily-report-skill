@@ -1,8 +1,9 @@
 ---
 name: ai-daily-report
 description: >
-  生成每日 AI/技术情报日报并发布到飞书知识库。从 Hacker News 和 HuggingFace Papers
-  抓取高质量内容，按主题分类、评级，生成中文日报，最终导入飞书 Wiki。
+  生成每日 AI/技术情报日报。从 Hacker News 和 HuggingFace Papers
+  抓取高质量内容，按主题分类、评级，生成中文日报。默认保存为本地 Markdown，
+  可选发布到飞书知识库。
   当用户说"生成日报"、"AI日报"、"今日技术资讯"、"每日情报"、"/ai-daily"、
   "tech daily"、"今天有什么新闻"、"抓一下今天的内容"时触发此技能。
   即使用户只是随口问"今天 HN 上有什么有意思的"，也应该触发。
@@ -10,7 +11,7 @@ description: >
 
 # AI Daily Report
 
-从 Hacker News 和 HuggingFace Papers 抓取当日高质量技术内容，按分类整理为中文日报，发布到飞书知识库。
+从 Hacker News 和 HuggingFace Papers 抓取当日高质量技术内容，按分类整理为中文日报。默认保存为本地 Markdown 文件，可选发布到飞书等平台。
 
 ## Workflow Overview
 
@@ -18,7 +19,9 @@ description: >
 1. Check cache  -->  2. Crawl sources  -->  3. Deduplicate & filter
       |                    |                        |
       v                    v                        v
-4. Score & categorize  -->  5. Generate Markdown  -->  6. Publish to Feishu Wiki
+4. Score & categorize  -->  5. Generate Markdown  -->  6. Save locally
+                                                       │
+                                                       └─→  7. (Optional) Publish to Feishu Wiki
 ```
 
 ## Step 1: Check Cache
@@ -123,70 +126,72 @@ Key rules:
 - After all HN topic sections, place HuggingFace papers in one dedicated section: `## AI 研究论文（HuggingFace Papers 今日精选）`. Papers must NOT appear inside the topic categories above -- they are always in this final section before the footer.
 - Footer with source attribution and generation date
 
-Save the Markdown to `~/notes/ai-report/ai-daily-{date}.md`.
+Save the Markdown to a local path. Ask the user where to save, or use a sensible default like `./ai-daily-{date}.md` or the user's preferred output directory.
 
-## Step 6: Publish to Feishu Wiki
+## Step 6: Save Locally
 
-The report goes to a dedicated Feishu knowledge base, organized by month.
+The report is always saved as a local Markdown file first. Ask the user for their preferred save path if not specified. Common patterns:
 
-### Wiki Configuration
+```bash
+# Default: current directory or user-specified path
+./ai-daily-{date}.md
+
+# Or a structured directory
+{output_dir}/ai-report/ai-daily-{date}.md
+```
+
+## Step 7: Publish (Optional)
+
+This step is **optional**. Only execute if the user explicitly requests publishing to a platform.
+
+### Option A: Feishu (Lark) Wiki
+
+If the user wants to publish to Feishu, they need to provide:
+
+1. **Wiki Space ID** — from their Feishu knowledge base URL
+2. **Root Node Token** — the parent node under which reports are organized
+3. **feishu-cli** installed and authenticated (`feishu-cli auth login`)
+
+Reports are organized by month under the root node:
 
 ```
-Space ID: 7627929211956645062
-Root Node Token: AgWUwNcZwiext0kCozvcv7eOnlc
-Wiki URL: https://bluefocus.feishu.cn/wiki/AgWUwNcZwiext0kCozvcv7eOnlc
-```
-
-### Monthly Organization
-
-Reports are grouped under monthly parent documents. The hierarchy:
-
-```
-知识库首页 (AgWUwNcZwiext0kCozvcv7eOnlc)
-  └── 2026年4月 (month node)
+知识库首页 (root_node_token)
+  └── {YYYY}年{M}月 (month node)
        ├── 每日技术情报日报 · 2026-04-07
        ├── 每日技术情报日报 · 2026-04-08
        └── ...
 ```
 
-### Publishing Steps
+#### Publishing Steps
 
-#### 6a. Find or create the monthly node
-
-List existing nodes under the root to check if a monthly node already exists:
+**7a. Find or create the monthly node**
 
 ```bash
-feishu-cli wiki node list 7627929211956645062 --parent-node-token AgWUwNcZwiext0kCozvcv7eOnlc
+feishu-cli wiki node list {space_id} --parent-node-token {root_node_token}
 ```
 
 Look for a node titled like `2026年4月`. If it doesn't exist, create it:
 
 ```bash
-feishu-cli wiki node create 7627929211956645062 \
+feishu-cli wiki node create {space_id} \
   --obj_type docx \
-  --parent_node_token AgWUwNcZwiext0kCozvcv7eOnlc \
-  --title "2026年4月"
+  --parent_node_token {root_node_token} \
+  --title "{YYYY}年{M}月"
 ```
 
-Save the returned `node_token` for the monthly node.
-
-#### 6b. Create the daily report document under the monthly node
+**7b. Create the daily report document**
 
 ```bash
-feishu-cli wiki node create 7627929211956645062 \
+feishu-cli wiki node create {space_id} \
   --obj_type docx \
   --parent_node_token {monthly_node_token} \
   --title "每日技术情报日报 · {date} · 共 {N} 条高质量精选内容"
 ```
 
-This creates an empty document. Save the returned `obj_token` (this is the `document_id`).
-
-#### 6c. Import the Markdown content
-
-Use the feishu-cli-import skill pattern:
+**7c. Import the Markdown content**
 
 ```bash
-feishu-cli doc import ~/notes/ai-report/ai-daily-{date}.md \
+feishu-cli doc import /path/to/ai-daily-{date}.md \
   --document-id {obj_token} \
   --title "每日技术情报日报 · {date} · 共 {N} 条高质量精选内容"
 ```
@@ -194,17 +199,24 @@ feishu-cli doc import ~/notes/ai-report/ai-daily-{date}.md \
 Or write content directly:
 
 ```bash
-feishu-cli doc add {obj_token} ~/notes/ai-report/ai-daily-{date}.md --content-type markdown
+feishu-cli doc add {obj_token} /path/to/ai-daily-{date}.md --content-type markdown
 ```
 
-#### 6d. Return the URL
+**7d. Return the URL**
 
-The final document URL follows this pattern:
 ```
-https://bluefocus.feishu.cn/wiki/{node_token}
+https://{tenant}.feishu.cn/wiki/{node_token}
 ```
 
-Print this URL so the user can open the report.
+### Option B: Other Platforms
+
+The skill generates standard Markdown. Users can integrate with any platform that accepts Markdown:
+- Notion (via API or import)
+- Confluence (via Markdown import)
+- GitHub Wiki / Pages
+- Any CMS with Markdown support
+
+The skill only handles Feishu natively via feishu-cli. For other platforms, provide the local Markdown path for the user to handle.
 
 ## Crawling Strategy: Use Sub-Agents for Parallelism
 
@@ -230,8 +242,8 @@ Then merge results, deduplicate, categorize, generate the report, and publish.
 |--------|---------|
 | Check cache | `python3 ~/.claude/skills/ai-daily-report/scripts/cache.py get --date YYYY-MM-DD` |
 | Add to cache | `python3 ~/.claude/skills/ai-daily-report/scripts/cache.py put '<json>'` |
-| List wiki nodes | `feishu-cli wiki node list 7627929211956645062` |
-| Create wiki node | `feishu-cli wiki node create 7627929211956645062 --obj_type docx --parent_node_token <token> --title "..."` |
+| List wiki nodes | `feishu-cli wiki node list {space_id}` |
+| Create wiki node | `feishu-cli wiki node create {space_id} --obj_type docx --parent_node_token <token> --title "..."` |
 | Get node info | `feishu-cli wiki node get <node_token>` |
 | Import markdown | `feishu-cli doc import /tmp/file.md --title "..."` |
 | Write to doc | `feishu-cli doc add <doc_id> /tmp/file.md --content-type markdown` |

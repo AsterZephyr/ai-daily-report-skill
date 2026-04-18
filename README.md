@@ -2,7 +2,7 @@
 
 > Claude Code Skill — 每日 AI/技术情报日报生成器
 
-从 Hacker News 和 HuggingFace Papers 自动抓取当日高质量技术内容，评分分类后生成中文日报，发布到飞书知识库。
+从 Hacker News 和 HuggingFace Papers 自动抓取当日高质量技术内容，评分分类后生成中文日报。默认保存为本地 Markdown，可选发布到飞书等平台。
 
 ## Quick Start
 
@@ -28,7 +28,7 @@ HN Top Stories   ──┐
                    ├─→ 去重 → 评分 → 分类 ──→ Markdown 日报
 HN Best Stories  ──┤                           │
                    │                           ├─→ 本地存档
-HuggingFace      ──┘                           └─→ 飞书 Wiki
+HuggingFace      ──┘                           └─→ 飞书 Wiki（可选）
 Papers
 ```
 
@@ -104,9 +104,9 @@ Anthropic 发布 Claude Code 2.0，新增 Skills 系统和多 Agent 编排，
 | 开源项目 | 重要开源发布和里程碑 |
 | 行业动态 | 商业新闻、收购、政策 |
 
-## 飞书发布
+## 飞书发布（可选）
 
-日报自动发布到飞书知识库，按月归档：
+如果需要发布到飞书知识库，日报按月归档：
 
 ```
 知识库首页
@@ -116,7 +116,7 @@ Anthropic 发布 Claude Code 2.0，新增 Skills 系统和多 Agent 编排，
        └── ...
 ```
 
-使用前需在 `SKILL.md` Step 6 中配置你自己的 Wiki Space ID 和 Root Node Token。
+使用前需在 `SKILL.md` Step 7 中配置你自己的 Wiki Space ID 和 Root Node Token。
 
 ## 项目结构
 
@@ -141,8 +141,8 @@ ai-daily-report-skill/
 |------|------|------|
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | 技能运行环境 | Yes |
 | Python 3.10+ | 缓存脚本 | Yes |
-| [feishu-cli](https://github.com/nicepkg/feishu-cli) | 飞书 Wiki 发布 | Yes |
-| 飞书开放平台 App | Wiki 写入权限 | Yes |
+| [feishu-cli](https://github.com/nicepkg/feishu-cli) | 飞书 Wiki 发布 | No (仅发布飞书时需要) |
+| 飞书开放平台 App | Wiki 写入权限 | No (仅发布飞书时需要) |
 | Playwright MCP Server | 未来扩展信源的浏览器自动化 | No |
 
 ## 安装
